@@ -189,13 +189,7 @@ object BaseProject extends AutoPlugin {
   }
 
   private def versionSetting = Def.setting {
-    val originalVersion = (version in ThisBuild).value
-    if (isSnapshotVersion(originalVersion)) {
-      val gitRevision = Process("git rev-parse HEAD").lineStream.head
-      originalVersion.replace("SNAPSHOT", gitRevision)
-    } else {
-      originalVersion
-    }
+    (version in ThisBuild).value
   }
 
   private def isSnapshotVersion(version: String): Boolean = {
