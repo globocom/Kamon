@@ -7,8 +7,6 @@ import sbtassembly.AssemblyPlugin.autoImport.{MergeStrategy, assembleArtifact, a
 import java.util.Calendar
 
 import Def.Initialize
-import bintray.{Bintray, BintrayPlugin}
-import bintray.BintrayKeys.{bintray, bintrayOrganization, bintrayRepository, bintrayVcsUrl}
 import com.jsuereth.sbtpgp.PgpKeys.useGpgPinentry
 import sbtrelease.ReleasePlugin.autoImport._
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
@@ -51,9 +49,6 @@ object BaseProject extends AutoPlugin {
       javaAgents := Seq("io.kamon" % "kanela-agent" % kanelaAgentVersion.value % "runtime;test")
     )
 
-    // This installs the GPG signing key from the
-    setupGpg()
-
     def compileScope(deps: ModuleID*): Seq[ModuleID]  = deps map (_ % "compile")
     def testScope(deps: ModuleID*): Seq[ModuleID]     = deps map (_ % "test")
     def providedScope(deps: ModuleID*): Seq[ModuleID] = deps map (_ % "provided")
@@ -93,10 +88,10 @@ object BaseProject extends AutoPlugin {
     }
   }
 
-  override def requires: Plugins = BintrayPlugin && JvmPlugin && HeaderPlugin
+  override def requires: Plugins = JvmPlugin && HeaderPlugin
   override def trigger: PluginTrigger = allRequirements
   override def projectSettings: Seq[_root_.sbt.Def.Setting[_]] =
-    commonSettings ++ compilationSettings ++ releaseSettings ++ publishingSettings
+    commonSettings ++ compilationSettings ++ publishingSettings
 
   private lazy val commonSettings = Seq(
     exportJars := true,
@@ -113,7 +108,6 @@ object BaseProject extends AutoPlugin {
     autoImport.kanelaAgentVersion := autoImport.kanelaAgent.revision,
     concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
     licenses += (("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))),
-    resolvers += Resolver.bintrayRepo("kamon-io", "releases"),
     resolvers += Resolver.mavenLocal,
     headerLicense := Some(HeaderLicense.ALv2("2013-2020","The Kamon Project <https://kamon.io>")),
     Keys.commands += Command.command("testUntilFailed") { state: State =>
@@ -153,21 +147,15 @@ object BaseProject extends AutoPlugin {
     })
   )
 
-  private lazy val releaseSettings = Seq(
-    releaseCrossBuild := false,
-    releaseProcess := kamonReleaseProcess.value
-  )
-
   private lazy val publishingSettings = Seq(
-    publishTo := publishTask.value,
     pomExtra := defaultPomExtra(),
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
     publishArtifact in Test := false,
-    useGpgPinentry in Global := true,
     pomIncludeRepository := { _ => false },
-    bintrayOrganization := Some("kamon-io"),
-    publishMavenStyle := publishMavenStyleSetting.value,
-    bintrayRepository := bintrayRepositorySetting.value,
-    bintrayVcsUrl := Some("git@github.com:kamon-io/Kamon.git")
+    publishTo := Some("Artifactory Realm" at "https://artifactory.globoi.com/artifactory/libs-release-local"),
+    credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
+    publishMavenStyle := true
   )
 
   private def licenseTemplate(startYear: Option[Int]) = {
@@ -210,25 +198,8 @@ object BaseProject extends AutoPlugin {
     }
   }
 
-  private def publishTask = Def.taskDyn[Option[Resolver]] {
-    if (isSnapshot.value)
-      Def.task(publishTo in bintray).value
-    else
-      Def.task(sonatypePublishToBundle.value)
-  }
-
-  private def publishMavenStyleSetting = Def.setting {
-    if (sbtPlugin.value) false else publishMavenStyle.value
-  }
-
   private def isSnapshotVersion(version: String): Boolean = {
     (version matches """(?:\d+\.)?(?:\d+\.)?(?:\d+)(?:-[A-Z0-9]*)?-[0-9a-f]{5,40}""") || (version endsWith "-SNAPSHOT")
-  }
-
-  private def bintrayRepositorySetting = Def.setting {
-    if (isSnapshot.value) "snapshots"
-    else if (sbtPlugin.value) Bintray.defaultSbtPluginRepository
-    else "releases"
   }
 
   private def defaultPomExtra() = {
