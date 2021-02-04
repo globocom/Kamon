@@ -41,7 +41,6 @@ object BaseProject extends AutoPlugin {
 
     val noPublishing = Seq(
       skip in publish := true,
-      publishLocal := {},
       publishArtifact := false
     )
 
@@ -100,7 +99,7 @@ object BaseProject extends AutoPlugin {
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-F", "2.5"),
     startYear := Some(2013),
     organization := "io.kamon",
-    version := versionSetting.value,
+    version := "2.2.1-globo",
     organizationName := "The Kamon Project",
     headerLicense := licenseTemplate(startYear.value),
     autoImport.kanelaAgentJar := findKanelaAgentJar.value,
